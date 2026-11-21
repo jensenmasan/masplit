@@ -1,0 +1,6 @@
+# MaSplit 构建产物，不入仓库
+.theos/
+obj/
+packages/
+*.deb
+.DS_Store

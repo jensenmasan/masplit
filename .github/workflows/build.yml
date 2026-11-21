@@ -1,0 +1,60 @@
+name: build-deb
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode / iPhoneOS SDK
+        run: |
+          xcodebuild -version
+          echo "SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)"
+          echo "SDK_VER=$(xcrun --sdk iphoneos --show-sdk-version)"
+
+      - name: Install build tools
+        run: |
+          brew install ldid xz dpkg || true
+          command -v ldid
+          command -v dpkg-deb
+
+      - name: Setup Theos (Xcode SDK)
+        run: |
+          git clone --recursive --depth=1 https://github.com/theos/theos.git "$HOME/theos"
+          mkdir -p "$HOME/theos/sdks" "$HOME/theos/lib"
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          VER="$(xcrun --sdk iphoneos --show-sdk-version)"
+          ln -sfn "$SDK" "$HOME/theos/sdks/iPhoneOS${VER}.sdk"
+          echo "=== sdks ==="
+          ls -la "$HOME/theos/sdks"
+          echo "=== lib ==="
+          ls -la "$HOME/theos/lib" | head -30
+          # 兼容老版 theos：缺 libsubstrate 时生成一个空 stub 供链接
+          if ! ls "$HOME/theos/lib"/libsubstrate.* >/dev/null 2>&1; then
+            printf '!tapi-tbd-v3\narchs: [ arm64, arm64e ]\nplatform: ios\nuuid: 9C1A2B3D-0000-0000-0000-000000000001\ninstall-name: /usr/lib/libsubstrate.dylib\nexports:\n  - archs: [ arm64, arm64e ]\n    symbols: [ _MSHookMessageEx, _MSHookFunction, _MSFindSymbol ]\n' > "$HOME/theos/lib/libsubstrate.tbd"
+            echo "generated libsubstrate.tbd"
+          fi
+
+      - name: Build package
+        run: |
+          export THEOS="$HOME/theos"
+          export PATH="$THEOS/bin:$PATH"
+          chmod +x layout/DEBIAN/postinst || true
+          make clean || true
+          make package FINALPACKAGE=1
+          echo "=== packages ==="
+          ls -la packages/
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: masplit-deb
+          path: packages/*.deb
+          if-no-files-found: error

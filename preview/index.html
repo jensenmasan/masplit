@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#04060b">
+<title>马老师专属分屏</title>
+<style>
+:root{
+  --lime:#c6ff3d;
+  --cyan:#37e6c8;
+  --ink:#04060b;
+  --radius:30px;
+  --scale:0.65;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--ink);color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  user-select:none;-webkit-user-select:none}
+#stage{position:fixed;inset:0;overflow:hidden;touch-action:none}
+
+/* ---------- 背景 ---------- */
+.bg{position:absolute;inset:0;
+  background:
+    radial-gradient(120% 80% at 18% 0%, #1b2b52 0%, transparent 55%),
+    radial-gradient(90% 60% at 88% 12%, #3a1c4a 0%, transparent 62%),
+    radial-gradient(80% 60% at 50% 100%, #0d2b33 0%, transparent 65%),
+    #04060b;}
+.stars{position:absolute;inset:0;pointer-events:none}
+.star{position:absolute;background:#fff;border-radius:50%;animation:tw 4s ease-in-out infinite alternate}
+@keyframes tw{from{opacity:.15}to{opacity:.85}}
+.meteor{position:absolute;width:150px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);
+  transform:rotate(-32deg);opacity:0;animation:meteor 9s linear infinite}
+.meteor.m2{animation-delay:4.5s;top:22%;left:60%}
+.meteor.m1{top:8%;left:8%}
+@keyframes meteor{0%,88%{opacity:0;transform:translate(0,0) rotate(-32deg)}90%{opacity:.9}100%{opacity:0;transform:translate(220px,140px) rotate(-32deg)}}
+
+/* ---------- 状态栏 ---------- */
+.statusbar{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 18px;font-size:10.5px;color:#dfe7f5;z-index:60;letter-spacing:.3px}
+.island{position:absolute;left:50%;top:7px;transform:translateX(-50%);width:108px;height:30px;
+  background:#000;border-radius:20px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 11px;font-size:8.5px;color:#8fe3c6;border:1px solid #161c26;box-shadow:0 4px 14px #0008}
+.sb-r{display:flex;gap:6px;align-items:center}
+
+/* ---------- 桌面 ---------- */
+.desktop{position:absolute;inset:156px 18px 130px;display:grid;grid-template-columns:repeat(4,1fr);
+  gap:20px 10px;align-content:start;opacity:.36;filter:saturate(.75)}
+.dicon{display:flex;flex-direction:column;align-items:center;gap:5px}
+.dicon .sq{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;font-size:23px;
+  box-shadow:0 8px 18px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.12)}
+.dicon span{font-size:8.5px;color:#cfd8ea;opacity:.85}
+
+/* ---------- 品牌标题 ---------- */
+.brand{position:absolute;top:80px;left:0;right:0;text-align:center;z-index:8;pointer-events:none}
+.brand:before{content:"";position:absolute;left:50%;top:-40px;transform:translateX(-50%);
+  width:130vw;height:200px;z-index:-1;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(4,6,11,.78),rgba(4,6,11,0) 72%)}
+.brand h1{font-size:clamp(26px,7.8vw,40px);font-weight:900;letter-spacing:3px;
+  background:linear-gradient(180deg,#f6ffc0,#c6ff3d 46%,#37e6c8);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  -webkit-text-stroke:1px rgba(6,10,8,.55);
+  filter:drop-shadow(0 3px 0 rgba(0,0,0,.55)) drop-shadow(0 0 20px rgba(198,255,61,.3))}
+.brand p{font-size:9px;letter-spacing:5px;color:#7a869e;margin-top:3px}
+
+/* ---------- 浮窗 ---------- */
+#wins{position:absolute;inset:0;z-index:20;pointer-events:none}
+.win{position:absolute;pointer-events:auto;background:#070b11;border-radius:var(--radius);
+  border:1px solid rgba(255,255,255,.16);overflow:hidden;
+  box-shadow:0 30px 70px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.5);
+  transition:width .32s cubic-bezier(.2,.9,.2,1),height .32s cubic-bezier(.2,.9,.2,1),
+    left .32s cubic-bezier(.2,.9,.2,1),top .32s cubic-bezier(.2,.9,.2,1),
+    border-radius .3s,box-shadow .3s}
+.win.dragging{transition:none}
+.win .hdr{position:absolute;top:0;left:0;right:0;height:36px;display:flex;align-items:center;gap:6px;
+  padding:0 8px;z-index:4;background:linear-gradient(180deg,rgba(0,0,0,.78),rgba(0,0,0,0));
+  cursor:grab;touch-action:none}
+.win .hdr:active{cursor:grabbing}
+.win .hdr .nm{font-size:11.5px;font-weight:600;color:#eaf1ff;flex:1;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;padding-left:3px}
+.win .hdr .btn{width:23px;height:23px;border-radius:12px;border:none;background:rgba(255,255,255,.16);
+  color:#fff;font-size:12px;line-height:1;display:grid;place-items:center;cursor:pointer;flex:none}
+.win .body{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;
+  background:radial-gradient(140% 46% at 50% 0%,#132033,#070b11 62%)}
+.win .grip{position:absolute;right:5px;bottom:5px;width:16px;height:16px;z-index:5;cursor:nwse-resize;
+  opacity:.45;touch-action:none}
+.win .grip:after{content:"";position:absolute;right:2px;bottom:2px;width:9px;height:9px;
+  border-right:2px solid #fff;border-bottom:2px solid #fff;border-radius:1px}
+.win .mini{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:4px;opacity:0;transition:opacity .2s;color:#fff;z-index:6}
+.win .mini .mn{font-size:7px;opacity:.85;max-width:46px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- 内容页 ---------- */
+.pg{padding:44px 12px 14px}
+.pg h2{font-size:15px;font-weight:700;letter-spacing:.4px;margin-bottom:2px}
+.pg .sub{font-size:9px;color:#7c8aa4;margin-bottom:12px}
+.searchbar{margin:40px 10px 8px;height:32px;border-radius:10px;background:rgba(255,255,255,.09);
+  display:flex;align-items:center;padding:0 10px;gap:6px;font-size:10px;color:#8f9cb5}
+.row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px}
+.row .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px;flex:none}
+.row .tx{flex:1;min-width:0}
+.row .tx b{display:block;font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .tx em{display:block;font-style:normal;font-size:8px;color:#78849b;margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .get{font-size:8.5px;padding:4px 10px;border-radius:12px;background:#1668e3;color:#fff;border:none;flex:none}
+.row .ver{font-size:8.5px;color:#6f7b92;flex:none}
+
+/* 商店绿头 */
+.store-head{background:linear-gradient(160deg,#0f5132,#0b2e20);padding:42px 12px 14px;margin:-44px -12px 10px}
+.store-head .t{font-size:19px;font-weight:800;letter-spacing:.5px}
+.store-head .d{font-size:9px;color:#9fe7c4;margin-top:2px}
+.feat{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px}
+.feat .fc{flex:none;width:112px;height:66px;border-radius:10px;padding:8px;font-size:9px;
+  background:linear-gradient(140deg,#123b2c,#0a1f18);border:1px solid rgba(60,220,160,.2)}
+.feat .fc b{display:block;font-size:10px;margin-bottom:2px}
+.feat .fc em{font-style:normal;color:#7fd8b0;font-size:7.5px}
+
+/* 直播 */
+.live-hero{position:relative;margin:-44px -12px 0;height:250px;overflow:hidden;
+  background:linear-gradient(170deg,#2a1348,#0b0a1c 60%,#071018)}
+.live-hero .glow{position:absolute;width:190px;height:190px;border-radius:50%;left:50%;top:52%;
+  transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(180,120,255,.55),transparent 68%);filter:blur(6px)}
+.live-hero .fig{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);font-size:92px;filter:drop-shadow(0 12px 24px #0009)}
+.live-hero .ttl{position:absolute;left:12px;top:44px;font-size:12px;font-weight:700;line-height:1.5}
+.live-hero .tag{position:absolute;left:12px;top:98px;font-size:8px;color:#d9c7ff;background:#ffffff1a;
+  padding:3px 8px;border-radius:9px}
+.live-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:9px;color:#9aa7bf}
+.live-bar .av{width:22px;height:22px;border-radius:50%;background:#5b3fa8;display:grid;place-items:center}
+.live-bar .pk{margin-left:auto;font-size:8.5px;padding:4px 9px;border-radius:10px;background:#7c3aed}
+
+/* 清理 */
+.clean-top{margin:-44px -12px 0;padding:46px 14px 14px;
+  background:linear-gradient(170deg,#0d3a2c,#071812);text-align:center}
+.clean-top .big{font-size:34px;font-weight:800;color:#4ade9a;letter-spacing:-1px}
+.clean-top .lb{font-size:8.5px;color:#8fd9bb;margin-top:3px}
+.clean-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05)}
+.clean-item .dot{width:7px;height:7px;border-radius:50%;background:#4ade9a;flex:none}
+.clean-item .tx{flex:1;min-width:0}
+.clean-item .tx b{display:block;font-size:9.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clean-item .tx em{display:block;font-style:normal;font-size:7.5px;color:#71809a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clean-item .sz{font-size:9px;color:#4ade9a;flex:none}
+.clean-foot{display:flex;gap:8px;padding:10px 12px 4px}
+.clean-foot button{flex:1;padding:9px 0;border-radius:10px;border:none;font-size:9.5px;
+  background:rgba(255,255,255,.1);color:#dfe8ff}
+.clean-foot button.main{background:#16a06a;color:#fff;font-weight:700}
+
+/* 音乐 */
+.music-pg{padding:56px 14px 14px;text-align:center;background:linear-gradient(170deg,#2a0d16,#0a0609 60%)}
+.disc{width:132px;height:132px;border-radius:50%;margin:0 auto 12px;
+  background:radial-gradient(circle at 50% 50%,#3b3b3b 0 18%,#111 19% 22%,#1d1d1d 23% 100%);
+  border:1px solid #ffffff1a;display:grid;place-items:center;font-size:34px;
+  box-shadow:0 14px 34px #000a;animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.music-pg .mt{font-size:13px;font-weight:700}
+.music-pg .ma{font-size:9px;color:#8f9ab0;margin-top:2px}
+.prog{height:3px;border-radius:2px;background:#ffffff1f;margin:16px 6px 6px;overflow:hidden}
+.prog i{display:block;width:42%;height:100%;background:linear-gradient(90deg,#c6ff3d,#37e6c8)}
+.times{display:flex;justify-content:space-between;font-size:7.5px;color:#7b879e;padding:0 6px}
+.ctrl{display:flex;justify-content:center;gap:22px;margin-top:14px;font-size:20px}
+
+/* 通用 */
+.generic{padding:60px 16px;text-align:center}
+.generic .bi{font-size:52px}
+.generic h3{font-size:14px;margin-top:8px}
+.generic p{font-size:9px;color:#7d8aa2;margin-top:4px;line-height:1.7}
+.skel{height:9px;border-radius:5px;background:#ffffff12;margin:9px 0}
+
+/* ---------- 边缘卡片（最小化） ---------- */
+.card{position:absolute;width:52px;height:100px;border-radius:13px;z-index:16;pointer-events:auto;
+  border:1px solid rgba(255,255,255,.18);box-shadow:0 14px 28px rgba(0,0,0,.6);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  transition:transform .18s,box-shadow .2s;overflow:hidden}
+.card .ci{font-size:20px}
+.card .cn{font-size:6.5px;max-width:44px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
+.card:active{transform:scale(1.07)}
+
+/* ---------- 悬浮球 ---------- */
+#launcher{position:absolute;right:9px;top:40%;width:46px;height:46px;border-radius:23px;z-index:55;
+  background:rgba(6,10,16,.72);border:1px solid rgba(198,255,61,.45);color:var(--lime);
+  font-size:17px;display:grid;place-items:center;backdrop-filter:blur(8px);cursor:pointer;
+  box-shadow:0 10px 24px rgba(0,0,0,.6), 0 0 20px rgba(198,255,61,.16);touch-action:none}
+#launcher:active{transform:scale(.94)}
+
+/* ---------- Dock ---------- */
+.dock{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:20px;
+  align-items:center;z-index:50}
+.dock-btn{width:46px;height:46px;border-radius:23px;border:1px solid rgba(255,255,255,.16);
+  background:rgba(10,14,20,.78);color:#dfe8ff;font-size:17px;backdrop-filter:blur(10px);
+  display:grid;place-items:center;cursor:pointer}
+.dock-btn:active{transform:scale(.94)}
+.dock-btn.primary{width:54px;height:54px;color:var(--lime);border-color:rgba(198,255,61,.5);
+  box-shadow:0 0 22px rgba(198,255,61,.22)}
+
+/* ---------- 环形选择器 ---------- */
+#ring{position:absolute;inset:0;z-index:70;background:rgba(3,5,10,.84);backdrop-filter:blur(11px)}
+#ring .rh{position:absolute;left:0;right:0;top:66px;text-align:center}
+#ring .rh b{font-size:13.5px;font-weight:700;letter-spacing:.5px}
+#ring .rh p{font-size:9px;color:#8b97ae;margin-top:3px}
+.ring-app{position:absolute;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.26);display:grid;place-items:center;font-size:25px;cursor:pointer;
+  box-shadow:0 12px 26px rgba(0,0,0,.55);background:rgba(255,255,255,.09);
+  animation:pop .5s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes pop{from{transform:scale(.15);opacity:0}to{transform:scale(1);opacity:1}}
+#ring .close{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);
+  font-size:10px;color:#9aa6bd;border:1px solid #ffffff24;padding:7px 18px;border-radius:16px;background:#ffffff0d}
+
+/* ---------- 设置抽屉 ---------- */
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:80;background:rgba(12,16,24,.97);
+  border-radius:26px 26px 0 0;border-top:1px solid rgba(255,255,255,.12);
+  padding:8px 18px 26px;transform:translateY(102%);transition:transform .38s cubic-bezier(.2,.9,.2,1);
+  box-shadow:0 -20px 50px rgba(0,0,0,.6)}
+#sheet.open{transform:translateY(0)}
+#sheet .grab{width:38px;height:4px;border-radius:2px;background:#ffffff2e;margin:4px auto 12px}
+#sheet .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+#sheet .sh b{font-size:13px;letter-spacing:.5px}
+#sheet .sh button{border:none;background:rgba(198,255,61,.14);color:var(--lime);font-size:10.5px;
+  padding:6px 14px;border-radius:12px;font-weight:600}
+.ctl{margin-bottom:14px}
+.ctl .lb{display:flex;justify-content:space-between;font-size:10.5px;color:#c3cede;margin-bottom:7px}
+.ctl .lb output{color:var(--lime);font-weight:600}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;
+  background:linear-gradient(90deg,rgba(198,255,61,.75),rgba(55,230,200,.4));outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:#0b1016;border:2px solid var(--lime);box-shadow:0 0 12px rgba(198,255,61,.5)}
+.sheet-note{font-size:8.5px;color:#73809a;line-height:1.7;margin-top:4px}
+
+/* ---------- 水印 & 提示 ---------- */
+.watermarks{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden}
+.watermarks span{position:absolute;font-size:10px;color:rgba(255,255,255,.085);
+  letter-spacing:2px;transform:rotate(-30deg);white-space:nowrap}
+#toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);z-index:90;
+  background:rgba(8,12,18,.92);border:1px solid rgba(255,255,255,.14);color:#e8f0ff;
+  font-size:11px;padding:12px 18px;border-radius:14px;opacity:0;transition:all .28s;pointer-events:none;
+  text-align:center;line-height:1.7;max-width:78vw}
+#toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg"></div>
+  <div class="stars" id="stars"></div>
+  <div class="meteor m1"></div>
+  <div class="meteor m2"></div>
+
+  <div class="statusbar">
+    <div id="sbTime">18:18 · 11/17</div>
+    <div class="island"><span>−786mA</span><span>29.0°</span></div>
+    <div class="sb-r"><span>87%</span><span>5G</span></div>
+  </div>
+
+  <div class="desktop" id="desktop"></div>
+
+  <div class="brand">
+    <h1>马老师专属分屏</h1>
+    <p>M A S P L I T &nbsp; S P L I T &nbsp; S C R E E N</p>
+  </div>
+
+  <div id="wins"></div>
+  <div id="cards"></div>
+
+  <button id="launcher" title="打开应用选择器">⧉</button>
+
+  <div class="dock">
+    <button class="dock-btn" id="btn-settings">⚙︎</button>
+    <button class="dock-btn primary" id="btn-home">◉</button>
+    <button class="dock-btn" id="btn-ring">✦</button>
+  </div>
+
+  <div id="ring" class="hidden">
+    <div class="rh"><b>马老师专属 · 挑一个放上来</b><p>点图标开浮窗 · 点空白收起</p></div>
+    <div class="close" id="ring-close">收起</div>
+  </div>
+
+  <div id="sheet">
+    <div class="grab"></div>
+    <div class="sh"><b>马老师分屏 · 设置</b><button id="sheet-close">完成</button></div>
+    <div class="ctl">
+      <div class="lb"><span>窗口大小</span><output id="v-scale">0.65</output></div>
+      <input type="range" id="r-scale" min="0.35" max="0.95" step="0.01" value="0.65">
+    </div>
+    <div class="ctl">
+      <div class="lb"><span>窗口圆角</span><output id="v-radius">30</output></div>
+      <input type="range" id="r-radius" min="0" max="46" step="1" value="30">
+    </div>
+    <div class="ctl">
+      <div class="lb"><span>浮窗数量上限</span><output id="v-max">8</output></div>
+      <input type="range" id="r-max" min="2" max="12" step="1" value="8">
+    </div>
+    <div class="ctl">
+      <div class="lb"><span>进出动画</span><output id="v-anim">0.32</output></div>
+      <input type="range" id="r-anim" min="0" max="0.6" step="0.02" value="0.32">
+    </div>
+    <p class="sheet-note">滑杆对应越狱插件里的同名设置项。真机上由 Preferences 面板控制，改完立即生效。</p>
+  </div>
+
+  <div class="watermarks" id="watermarks"></div>
+  <div id="toast"></div>
+</div>
+
+<script>
+/* ================= 数据 ================= */
+const APPS = [
+  {id:'clean',  name:'AxsClean',      icon:'🧹', color:'#1f7a5a', page:'clean'},
+  {id:'store',  name:'AppDowngrade',  icon:'🛒', color:'#1e5fd0', page:'store'},
+  {id:'live',   name:'直播',           icon:'📺', color:'#7c3aed', page:'live'},
+  {id:'apps',   name:'应用',           icon:'▦',  color:'#0e7490', page:'list'},
+  {id:'music',  name:'音乐',           icon:'🎵', color:'#dc2626', page:'music'},
+  {id:'chat',   name:'消息',           icon:'💬', color:'#16a34a', page:'generic'},
+  {id:'map',    name:'地图',           icon:'🗺️', color:'#0284c7', page:'generic'},
+  {id:'photo',  name:'相册',           icon:'🖼️', color:'#db2777', page:'generic'},
+  {id:'note',   name:'备忘录',         icon:'📝', color:'#ca8a04', page:'generic'},
+  {id:'weather',name:'天气',           icon:'🌤️', color:'#0891b2', page:'generic'},
+  {id:'game',   name:'游戏',           icon:'🎮', color:'#4f46e5', page:'generic'},
+  {id:'files',  name:'文件',           icon:'📁', color:'#0369a1', page:'generic'},
+];
+
+const state = { scale:0.65, radius:30, maxWin:8, anim:0.32 };
+let wins = [];
+let zIndex = 20;
+
+const stage   = document.getElementById('stage');
+const winsEl  = document.getElementById('wins');
+const cardsEl = document.getElementById('cards');
+const ringEl  = document.getElementById('ring');
+const sheetEl = document.getElementById('sheet');
+
+/* ================= 背景装饰 ================= */
+(function stars(){
+  const box = document.getElementById('stars');
+  for (let i = 0; i < 110; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const r = Math.random() * 1.6 + 0.5;
+    s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${r}px;height:${r}px;animation-delay:${Math.random()*4}s`;
+    box.appendChild(s);
+  }
+})();
+
+(function watermarks(){
+  const box = document.getElementById('watermarks');
+  const text = '马老师专属';
+  for (let i = 0; i < 14; i++) {
+    const s = document.createElement('span');
+    s.textContent = text;
+    s.style.left = (Math.random()*105 - 10) + '%';
+    s.style.top  = (Math.random()*105 - 5) + '%';
+    s.style.fontSize = (8 + Math.random()*5) + 'px';
+    box.appendChild(s);
+  }
+})();
+
+/* 桌面图标 */
+(function desktop(){
+  const box = document.getElementById('desktop');
+  const extra = ['设置','时钟','相机','日历','健康','音乐','股票','播客','书','家庭','钱包','提示'];
+  extra.forEach((n, i) => {
+    const d = document.createElement('div');
+    d.className = 'dicon';
+    const hue = (i * 37) % 360;
+    d.innerHTML = `<div class="sq" style="background:linear-gradient(150deg,hsl(${hue} 55% 46%),hsl(${hue+25} 60% 28%))">${['⚙︎','🕰','📷','📅','❤️','🎵','📈','🎧','📚','🏠','💳','💡'][i]}</div><span>${n}</span>`;
+    box.appendChild(d);
+  });
+})();
+
+/* ================= 时间 ================= */
+function tick(){
+  const d = new Date();
+  document.getElementById('sbTime').textContent =
+    `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${d.getMonth()+1}/${d.getDate()}`;
+}
+tick(); setInterval(tick, 30000);
+
+/* ================= 内容页 ================= */
+function rowHTML(icon, color, title, sub, right){
+  return `<div class="row">
+    <div class="ic" style="background:${color}22;color:${color}">${icon}</div>
+    <div class="tx"><b>${title}</b><em>${sub}</em></div>
+    ${right || ''}
+  </div>`;
+}
+
+function pageHTML(app){
+  switch (app.page) {
+    case 'list': {
+      const list = [
+        ['5','#1a73e8','115生活','版本 15.0.2 · com.115.personal'],
+        ['☁️','#2d7ff9','阿里云盘','版本 4.9.6 · com.alicloud.smartdrive'],
+        ['🖌️','#8b5cf6','爱笔思画X','版本 11.3.1 · jp.ibisPaintX'],
+        ['🅰️','#e11d48','Aemulo','版本 1.0.0 · com.amywhile.Aemulo'],
+        ['📡','#0ea5e9','AliListServer','版本 1.0.0 · com.pengdge.ali'],
+        ['🔐','#22c55e','Authenticator','版本 2.0.1 · com.malaoshi.auth'],
+      ];
+      return `<div class="searchbar">🔍 搜索 写入名称或标识</div>
+        <div class="pg" style="padding-top:6px">
+        ${list.map(a => rowHTML(a[0], a[1], a[2], a[3])).join('')}
+        </div>`;
+    }
+    case 'store': {
+      return `<div class="store-head"><div class="t">精选</div><div class="d">AppDowngrade · 越狱应用商店</div></div>
+        <div class="pg" style="padding-top:0">
+          <div class="feat">
+            <div class="fc"><b>Glint</b><em>清理 · 1.2.0</em></div>
+            <div class="fc"><b>Horythin</b><em>美化 · 2.4.1</em></div>
+            <div class="fc"><b>Cylinder</b><em>动画 · 1.0.9</em></div>
+          </div>
+          ${rowHTML('🅷','#f43f5e','Horythin Now','越狱美化 · 1x','<button class="get">获取</button>')}
+          ${rowHTML('🧊','#38bdf8','Glint','清理缓存 · 1.2.0','<button class="get">$0.99</button>')}
+          ${rowHTML('🎞️','#a3e635','Cylinder Reborn','翻页动画 · 1.0','<button class="get">获取</button>')}
+          ${rowHTML('🧩','#818cf8','EasySwype','手势 · 1.4','<button class="get">获取</button>')}
+        </div>`;
+    }
+    case 'live': {
+      return `<div class="live-hero">
+          <div class="glow"></div>
+          <div class="ttl">官宣定档<br>徐怀钰个人演唱会</div>
+          <div class="tag"># 演唱会 · 12月26日</div>
+          <div class="fig">💃</div>
+        </div>
+        <div class="live-bar"><div class="av">🎤</div><div>徐怀钰 · 光致蜕变 Live</div><div class="pk">购票</div></div>
+        <div class="pg" style="padding-top:0">
+          <p class="sub">徐怀钰《光致蜕变 Light it Up》巡回演唱会 · 12月26日 · 北京</p>
+          <div class="skel" style="width:88%"></div>
+          <div class="skel" style="width:72%"></div>
+          <div class="skel" style="width:80%"></div>
+        </div>`;
+    }
+    case 'clean': {
+      return `<div class="clean-top">
+          <div class="big">700.9<span style="font-size:14px"> MB</span></div>
+          <div class="lb">已选 65 项 · 建议清理</div>
+        </div>
+        <div class="pg" style="padding:8px 0 0">
+          ${['dlDiagnostics/Special|348.3 MB|/private/var/mobile/diagnostics',
+             'dl4uxldent|229.1 MB|/private/var/mobile/diagnostics',
+             'com.apple.keyboards|109.8 MB|/var/mobile/Library/Keyboard',
+             'com.tencent.wx|103.6 MB|/var/mobile/Containers/Data']
+            .map(s => { const [n,sz,p] = s.split('|');
+              return `<div class="clean-item"><div class="dot"></div>
+                <div class="tx"><b>${n}</b><em>${p}</em></div><div class="sz">${sz}</div></div>`; }).join('')}
+        </div>
+        <div class="clean-foot"><button>全选</button><button>仅推荐</button><button class="main">清理</button></div>`;
+    }
+    case 'music': {
+      return `<div class="music-pg">
+          <div class="disc">🎧</div>
+          <div class="mt">光致蜕变 (Light it Up)</div>
+          <div class="ma">徐怀钰 · 马老师歌单</div>
+          <div class="prog"><i></i></div>
+          <div class="times"><span>1:24</span><span>3:18</span></div>
+          <div class="ctrl"><span>⏮</span><span style="color:var(--lime)">⏸</span><span>⏭</span></div>
+        </div>`;
+    }
+    default:
+      return `<div class="generic">
+          <div class="bi">${app.icon}</div>
+          <h3>${app.name}</h3>
+          <p>这是浮窗里的实时界面<br>拖动标题栏移动 · 右下角缩放</p>
+          <div class="skel" style="width:80%;margin:18px auto 8px"></div>
+          <div class="skel" style="width:64%;margin:0 auto 8px"></div>
+          <div class="skel" style="width:72%;margin:0 auto"></div>
+        </div>`;
+  }
+}
+
+/* ================= 窗口 ================= */
+function stageSize(){ return { W: stage.clientWidth, H: stage.clientHeight }; }
+
+function openApp(appId){
+  const app = APPS.find(a => a.id === appId);
+  if (!app) return;
+
+  const exist = wins.find(w => w.app.id === appId);
+  if (exist) { restoreWin(exist); return; }
+
+  if (wins.length >= state.maxWin) closeWin(wins[0], true);
+
+  const { W, H } = stageSize();
+  // 越往后开的窗口略小、略低，露出上一层的标题栏，形成层叠感
+  const cascade = Math.pow(0.92, wins.length);
+  const w = Math.round(W * state.scale * cascade);
+  const h = Math.round(Math.min(H * 0.70, w * 1.58));
+  const n = wins.length % 4;
+  const dx = [0, 14, -14, 20][n];
+  const dy = wins.length * 52;
+  const left = Math.max(4, Math.min(W - w - 4, Math.round((W - w) / 2 + dx)));
+  const top  = Math.min(H - h - 84, Math.round((H - h) / 2 + 36 + dy));
+
+  const el = document.createElement('div');
+  el.className = 'win';
+  el.style.cssText = `width:${w}px;height:${h}px;left:${left}px;top:${top}px;z-index:${++zIndex}`;
+  el.innerHTML = `
+    <div class="hdr">
+      <div class="nm">${app.name}</div>
+      <button class="btn" data-act="min">–</button>
+      <button class="btn" data-act="close">×</button>
+    </div>
+    <div class="body">${pageHTML(app)}</div>
+    <div class="grip"></div>`;
+  winsEl.appendChild(el);
+
+  const win = { app, el, minimized:false, mini:null, saved:{ left, top, w, h } };
+  wins.push(win);
+  bindWin(win);
+
+  el.animate(
+    [{ transform:'scale(.9)', opacity:0 }, { transform:'scale(1)', opacity:1 }],
+    { duration:340, easing:'cubic-bezier(.2,1.2,.4,1)' }
+  );
+}
+
+function bindWin(win){
+  const el = win.el;
+  const hdr = el.querySelector('.hdr');
+  const body = el.querySelector('.body');
+  const grip = el.querySelector('.grip');
+
+  el.querySelector('[data-act="close"]').onclick = e => { e.stopPropagation(); closeWin(win); };
+  el.querySelector('[data-act="min"]').onclick   = e => { e.stopPropagation(); minimizeWin(win); };
+
+  let drag = null;
+  hdr.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+    if (win.minimized) return;
+    el.classList.add('dragging');
+    el.style.zIndex = ++zIndex;
+    drag = { sx:e.clientX, sy:e.clientY, ox:el.offsetLeft, oy:el.offsetTop };
+    hdr.setPointerCapture(e.pointerId);
+  });
+  hdr.addEventListener('pointermove', e => {
+    if (!drag) return;
+    el.style.left = (drag.ox + e.clientX - drag.sx) + 'px';
+    el.style.top  = (drag.oy + e.clientY - drag.sy) + 'px';
+  });
+  hdr.addEventListener('pointerup', () => {
+    if (!drag) return;
+    drag = null;
+    el.classList.remove('dragging');
+    settleWin(win);
+  });
+  hdr.addEventListener('pointercancel', () => { drag = null; el.classList.remove('dragging'); });
+
+  let rs = null;
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    el.classList.add('dragging');
+    rs = { sx:e.clientX, sy:e.clientY, w:el.offsetWidth, h:el.offsetHeight };
+    grip.setPointerCapture(e.pointerId);
+  });
+  grip.addEventListener('pointermove', e => {
+    if (!rs) return;
+    const { W } = stageSize();
+    const nw = Math.max(W * 0.34, Math.min(W * 0.98, rs.w + e.clientX - rs.sx));
+    el.style.width  = nw + 'px';
+    el.style.height = Math.max(nw * 1.15, rs.h + e.clientY - rs.sy) + 'px';
+  });
+  grip.addEventListener('pointerup', () => {
+    if (!rs) return;
+    rs = null;
+    el.classList.remove('dragging');
+    const { W } = stageSize();
+    state.scale = Math.round(el.offsetWidth / W * 100) / 100;
+    syncUI();
+    win.saved = { left:el.offsetLeft, top:el.offsetTop, w:el.offsetWidth, h:el.offsetHeight };
+  });
+
+  body.addEventListener('pointerdown', e => e.stopPropagation());
+
+  el.addEventListener('click', e => {
+    if (!win.minimized) return;
+    if (e.target.closest('button')) return;
+    restoreWin(win);
+  });
+}
+
+function settleWin(win){
+  const { W, H } = stageSize();
+  const el = win.el;
+  const left = el.offsetLeft, right = left + el.offsetWidth;
+
+  if (left < W * 0.13)  { minimizeWin(win, 'left');  return; }
+  if (right > W * 0.87){ minimizeWin(win, 'right'); return; }
+
+  const nl = Math.max(6, Math.min(W - el.offsetWidth - 6, left));
+  const nt = Math.max(56, Math.min(H - el.offsetHeight - 86, el.offsetTop));
+  el.style.left = nl + 'px';
+  el.style.top  = nt + 'px';
+  win.saved = { left:nl, top:nt, w:el.offsetWidth, h:el.offsetHeight };
+}
+
+function minimizeWin(win, side){
+  if (win.minimized) return;
+  const { W, H } = stageSize();
+  const el = win.el;
+  win.saved = { left:el.offsetLeft, top:el.offsetTop, w:el.offsetWidth, h:el.offsetHeight };
+
+  const s = side || (el.offsetLeft + el.offsetWidth / 2 < W / 2 ? 'left' : 'right');
+  const cw = 52, ch = 100;
+  const sameSide = wins.filter(w => w.minimized && w.side === s).length;
+  const cy = Math.max(132, Math.min(H - 190, H * 0.40 + sameSide * 112));
+
+  el.classList.add('minimized');
+  el.style.width = cw + 'px';
+  el.style.height = ch + 'px';
+  el.style.left = (s === 'left' ? -3 : W - cw + 3) + 'px';
+  el.style.top = cy + 'px';
+  el.style.borderRadius = '13px';
+  el.style.background = `linear-gradient(160deg, ${win.app.color}, #070b11)`;
+
+  el.querySelector('.body').style.opacity = 0;
+  el.querySelector('.hdr').style.opacity = 0;
+  el.querySelector('.grip').style.opacity = 0;
+
+  if (!win.mini) {
+    const m = document.createElement('div');
+    m.className = 'mini';
+    el.appendChild(m);
+    win.mini = m;
+  }
+  win.mini.innerHTML = `<div style="font-size:20px">${win.app.icon}</div><div class="mn">${win.app.name}</div>`;
+  win.mini.style.opacity = 1;
+  win.minimized = true;
+  win.side = s;
+}
+
+function restoreWin(win){
+  if (!win.minimized) return;
+  const el = win.el;
+  const { W } = stageSize();
+
+  win.minimized = false;
+  el.classList.remove('minimized');
+  el.style.width  = Math.min(win.saved.w, Math.round(W * 0.96)) + 'px';
+  el.style.height = win.saved.h + 'px';
+  el.style.left   = Math.max(4, Math.min(W - win.saved.w - 4, win.saved.left)) + 'px';
+  el.style.top    = win.saved.top + 'px';
+  el.style.borderRadius = 'var(--radius)';
+  el.style.background = '#070b11';
+  el.style.zIndex = ++zIndex;
+
+  el.querySelector('.body').style.opacity = 1;
+  el.querySelector('.hdr').style.opacity = 1;
+  el.querySelector('.grip').style.opacity = 1;
+  if (win.mini) win.mini.style.opacity = 0;
+}
+
+function closeWin(win, silent){
+  const el = win.el;
+  el.style.pointerEvents = 'none';
+  const anim = el.animate(
+    [{ opacity:1, transform:'scale(1)' }, { opacity:0, transform:'scale(.86)' }],
+    { duration: silent ? 0 : 200, fill:'forwards' }
+  );
+  anim.onfinish = () => el.remove();
+  wins = wins.filter(w => w !== win);
+}
+
+function minimizeAll(){
+  wins.forEach(w => { if (!w.minimized) minimizeWin(w); });
+  document.getElementById('sheet').classList.remove('open');
+}
+
+/* ================= 环形选择器 ================= */
+function openRing(){
+  ringEl.classList.remove('hidden');
+  [...ringEl.querySelectorAll('.ring-app')].forEach(n => n.remove());
+
+  const { W, H } = stageSize();
+  const cx = W / 2, cy = H * 0.55;
+  const maxR = Math.min(W * 0.44, H * 0.29);
+
+  APPS.forEach((app, i) => {
+    const t  = APPS.length <= 1 ? 0 : i / (APPS.length - 1);
+    const r  = Math.sqrt(t) * maxR;
+    const th = i * 2.39996;
+    const x = cx + Math.cos(th) * r;
+    const y = cy + Math.sin(th) * r;
+
+    const b = document.createElement('button');
+    b.className = 'ring-app';
+    b.style.left = x + 'px';
+    b.style.top  = y + 'px';
+    b.style.animationDelay = (i * 14) + 'ms';
+    b.style.background = `linear-gradient(150deg, ${app.color}, #0a0f16)`;
+    b.textContent = app.icon;
+    b.onclick = () => { closeRing(); setTimeout(() => openApp(app.id), 80); };
+    ringEl.appendChild(b);
+  });
+}
+
+function closeRing(){
+  [...ringEl.querySelectorAll('.ring-app')].forEach((n, i) => {
+    n.style.transition = 'transform .2s, opacity .2s';
+    n.style.transform = 'scale(.3)';
+    n.style.opacity = 0;
+  });
+  setTimeout(() => ringEl.classList.add('hidden'), 190);
+}
+
+/* ================= 设置 ================= */
+function syncUI(){
+  document.documentElement.style.setProperty('--scale', state.scale);
+  document.documentElement.style.setProperty('--radius', state.radius + 'px');
+  document.getElementById('v-scale').textContent  = state.scale.toFixed(2);
+  document.getElementById('v-radius').textContent = state.radius;
+  document.getElementById('v-max').textContent    = state.maxWin;
+  document.getElementById('v-anim').textContent   = state.anim.toFixed(2);
+  document.getElementById('r-scale').value  = state.scale;
+  document.getElementById('r-radius').value = state.radius;
+  document.getElementById('r-max').value    = state.maxWin;
+  document.getElementById('r-anim').value   = state.anim;
+
+  wins.forEach(w => {
+    if (w.minimized) return;
+    const { W } = stageSize();
+    const nw = Math.round(W * state.scale);
+    w.el.style.width  = nw + 'px';
+    w.el.style.height = Math.round(Math.min(stage.clientHeight * 0.70, nw * 1.58)) + 'px';
+    w.el.style.borderRadius = state.radius + 'px';
+  });
+}
+
+function applyAnim(){
+  document.querySelectorAll('.win').forEach(el => {
+    el.style.transition =
+      `width ${state.anim}s cubic-bezier(.2,.9,.2,1),height ${state.anim}s cubic-bezier(.2,.9,.2,1),` +
+      `left ${state.anim}s cubic-bezier(.2,.9,.2,1),top ${state.anim}s cubic-bezier(.2,.9,.2,1),` +
+      `border-radius .3s,box-shadow .3s`;
+  });
+}
+
+/* ================= 事件 ================= */
+document.getElementById('launcher').onclick = openRing;
+document.getElementById('btn-ring').onclick  = openRing;
+document.getElementById('btn-settings').onclick = () => sheetEl.classList.toggle('open');
+document.getElementById('sheet-close').onclick  = () => sheetEl.classList.remove('open');
+document.getElementById('ring-close').onclick   = closeRing;
+document.getElementById('btn-home').onclick = () => {
+  const expanded = wins.filter(w => !w.minimized).length;
+  if (expanded) minimizeAll();
+  else wins.forEach(w => restoreWin(w));
+  toast(expanded ? '浮窗已收起到屏幕边缘' : '浮窗已全部展开');
+};
+
+document.getElementById('r-scale').oninput  = e => { state.scale  = +e.target.value; syncUI(); };
+document.getElementById('r-radius').oninput = e => { state.radius = +e.target.value; syncUI(); };
+document.getElementById('r-max').oninput    = e => { state.maxWin = +e.target.value; syncUI(); };
+document.getElementById('r-anim').oninput   = e => { state.anim   = +e.target.value; syncUI(); applyAnim(); };
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { sheetEl.classList.remove('open'); if (!ringEl.classList.contains('hidden')) closeRing(); }
+});
+
+ringEl.addEventListener('pointerdown', e => {
+  if (e.target === ringEl || e.target.classList.contains('rh') || e.target.closest('.rh')) closeRing();
+});
+
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('.win, .card, button, #sheet, #ring')) return;
+  if (wins.some(w => !w.minimized)) minimizeAll();
+}, true);
+
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.innerHTML = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ================= 首次引导 ================= */
+window.addEventListener('load', () => {
+  setTimeout(() => openApp('live'), 600);
+  setTimeout(() => toast('拖动浮窗标题栏移动<br>拖到屏幕边缘会自动收成卡片'), 1500);
+});
+
+window.addEventListener('resize', () => {
+  const { W, H } = stageSize();
+  wins.forEach(w => {
+    if (w.minimized) {
+      w.el.style.left = (w.side === 'left' ? -3 : W - 49) + 'px';
+    } else {
+      w.el.style.left = Math.max(4, Math.min(W - w.el.offsetWidth - 4, w.el.offsetLeft)) + 'px';
+      w.el.style.top  = Math.max(56, Math.min(H - w.el.offsetHeight - 86, w.el.offsetTop)) + 'px';
+    }
+  });
+});
+</script>
+</body>
+</html>

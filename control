@@ -1,0 +1,10 @@
+Package: com.malaoshi.masplit
+Name: 马老师分屏
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: 马老师专属分屏 —— 边缘悬浮窗多任务系统，支持浮窗跑应用、边缘收纳、环形应用选择、手势唤出与完整设置面板。
+Maintainer: 马老师
+Author: 马老师
+Section: Tweaks
+Depends: mobilesubstrate, firmware (>= 14.0)
+Icon: file:///Library/PreferenceLoader/Preferences/MaSplit.png
