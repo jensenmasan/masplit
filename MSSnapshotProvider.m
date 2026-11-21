@@ -120,9 +120,9 @@ static UIColor *MSColor(NSString *hex) {
 		CGRect rect = CGRectMake(0, 0, size.width, size.height);
 
 		// 渐变底
-		CGGradientRef grad = CGGradientCreateWithColors(NULL,
-			(__bridge CFArrayRef)@[(__bridge id)MSColor(pair[0]), (__bridge id)MSColor(pair[1])],
-			NULL);
+	CGGradientRef grad = CGGradientCreateWithColors(NULL,
+		(__bridge CFArrayRef)@[(__bridge id)MSColor(pair[0]).CGColor, (__bridge id)MSColor(pair[1]).CGColor],
+		NULL);
 		CGContextDrawLinearGradient(c, grad, CGPointMake(0, 0), CGPointMake(size.width * 0.4, size.height), 0);
 		CGGradientRelease(grad);
 

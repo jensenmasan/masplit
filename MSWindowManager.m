@@ -33,6 +33,7 @@ static NSString *const kStatePath = @"/var/mobile/Library/Preferences/com.malaos
 
 @interface MSWindowManager () <UIGestureRecognizerDelegate> {
 	NSMutableArray<MSFloatingWindow *> *_windows;
+	UIWindow *_hostWindow;
 	UIView *_homeView;
 	__weak UIView *_gestureHost;
 	CGPoint _edgeStartPoint;
