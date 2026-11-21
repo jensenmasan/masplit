@@ -1,0 +1,11 @@
+name: probe-runner
+on: [push, workflow_dispatch]
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-13, macos-14, macos-15, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: echo "RUNNER_OK $(uname -a)"
