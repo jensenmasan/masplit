@@ -1,6 +1,6 @@
 #import "MSPrefsRootListController.h"
 #import <notify.h>
-#import <stdlib.h>
+#import <dlfcn.h>
 
 @implementation MSPrefsRootListController
 
@@ -38,7 +38,9 @@
 	                                                        preferredStyle:UIAlertControllerStyleAlert];
 	[alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
 	[alert addAction:[UIAlertAction actionWithTitle:@"重启" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *a) {
-		system("killall -9 SpringBoard");
+		// iOS SDK 将 system() 标为 unavailable，运行时动态取符号（越狱环境可用）
+		int (*ms_system)(const char *) = (int (*)(const char *))dlsym(RTLD_DEFAULT, "system");
+		if (ms_system) ms_system("killall -9 SpringBoard");
 	}]];
 	[self presentViewController:alert animated:YES completion:nil];
 }
