@@ -7,6 +7,14 @@
 - **版本**：1.0.0
 - **作者**：马老师
 
+> ✅ **成品已编译出来了**
+> - `MaSplit-1.0.0-iphoneos-arm64.deb` —— 265 KB，可直接安装（rootless / arm64+arm64e）
+> - `MaSplit-1.0.0-source.zip` —— 完整源码（含全部编译修复）
+> - `MaSplit/packages/com.malaoshi.masplit_1.0.0_iphoneos-arm64.deb` —— 同一份包
+>
+> 编译走 GitHub Actions：`macos-15` + Xcode 自带 `iPhoneOS18.5.sdk` + theos，CI 全绿。
+> 仓库：`https://github.com/jensenmasan/masplit`（公开，Actions 里可一键重跑出包）。
+
 ---
 
 ## 一、视频功能 → 本插件实现对照
@@ -47,63 +55,87 @@ MaSplit/
 ├── prefs/                      # 设置面板 bundle
 │   ├── Makefile
 │   ├── MSPrefsRootListController.{h,m}
+│   ├── include/Preferences/    # 私有框架最小头声明（免私有 SDK）
 │   └── Resources/{Root.plist, Info.plist}
 ├── layout/                     # 打包时原样落盘的文件
 │   ├── DEBIAN/postinst
 │   └── Library/PreferenceLoader/Preferences/{MaSplit.plist, MaSplit.png}
-├── preview/index.html          # 可交互网页预览（重点看这个）
+├── packages/                   # 编译产物 .deb
+├── preview/index.html          # 可交互网页预览
+├── .gitattributes              # 强制 LF，防 CRLF 毁掉 Makefile / postinst
 └── .github/workflows/build.yml # push 到 GitHub 自动出 deb
 ```
 
 ---
 
-## 三、编译
+## 三、编译（已完成，可复现）
 
-> ⚠️ 我这边跑不了编译：本机 WSL 被安全策略禁用了，也没有 iOS SDK。工程是严格按 theos 规范写的，但**第一次编译请把报错发我**，我直接改。
+本机 Windows 侧无法编译（WSL 被安全策略禁用、Docker 守护进程未启动、无 iOS SDK、无 theos），所以改走 **GitHub Actions 远程编译**，已成功产出 `.deb`：
 
-### 方式 A：GitHub Actions（推荐，不用装环境）
+- Runner：`macos-15`（注意 `macos-14` 在当前账号下被判定 `macos-14-arm64-us-default` 配置不支持，会直接取消）
+- SDK：Runner 自带 Xcode 的 `iPhoneOS18.5.sdk`，软链进 `$THEOS/sdks/iPhoneOS18.5.sdk`（`theos/sdks` 是私有仓库，公开拉不到）
+- 工具：`brew install ldid xz dpkg` + `git clone --recursive --depth=1 theos`
+- 命令：`make -k -j8 package FINALPACKAGE=1`
+- 产物：`packages/com.malaoshi.masplit_1.0.0_iphoneos-arm64.deb`
+
+包内已核对（标准 rootless 布局）：
+
+```
+var/jb/Library/MobileSubstrate/DynamicLibraries/MaSplit.dylib   (274 KB, arm64+arm64e)
+var/jb/Library/MobileSubstrate/DynamicLibraries/MaSplit.plist
+var/jb/Library/PreferenceBundles/MaSplitPrefs.bundle/{Info.plist,MaSplitPrefs,Root.plist}
+var/jb/Library/PreferenceLoader/Preferences/{MaSplit.plist,MaSplit.png}
+```
+
+改完代码重新出包：
 
 ```bash
 cd MaSplit
-git init && git add . && git commit -m "MaSplit 1.0.0"
-gh repo create masplit --private --source=. --push
+git add -A && git commit -m "update" && git push origin main
+# 打开 https://github.com/jensenmasan/masplit/actions
+# 跑完在 Artifacts 下载 masplit-deb
+
+# 或用 gh 直接取
+gh run download <run-id> -n masplit-deb --repo jensenmasan/masplit
 ```
 
-推上去后打开仓库的 **Actions → build-deb**，跑完在 Artifacts 里下 `masplit-deb`，就是打好的 `.deb`。
-
-### 方式 B：本地 WSL / macOS
+### 本地（WSL / macOS）编译
 
 ```bash
-# 1. 装 theos（一次性）
 export THEOS=~/theos
 git clone --recursive --depth=1 https://github.com/theos/theos.git $THEOS
-mkdir -p $THEOS/sdks && cd $THEOS/sdks
-curl -L https://github.com/theos/sdks/archive/master.tar.gz | tar xz --strip-components=1
 
-# 2. 编译
-cd /mnt/c/Users/Jason/WorkBuddy/2026-11-21-14-26-33/MaSplit
-export PATH=$THEOS/bin:$PATH
-make clean package
+# macOS：把 Xcode SDK 软链进 theos
+mkdir -p $THEOS/sdks
+SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+VER=$(xcrun --sdk iphoneos --show-sdk-version)
+ln -sfn "$SDK" "$THEOS/sdks/iPhoneOS${VER}.sdk"
 
-# 3. 产物
-ls packages/
-# com.malaoshi.masplit_1.0.0_iphoneos-arm64.deb
+# Linux：需自备 iPhoneOS.sdk（theos/sdks 私有仓库公开拉不到）
+cd MaSplit && export PATH=$THEOS/bin:$PATH && make package FINALPACKAGE=1
 ```
 
-依赖：`clang`、`make`、`ldid`、`xz-utils`、`fakeroot`（Ubuntu: `sudo apt install -y clang make ldid xz-utils fakeroot`）。
+依赖：`clang`、`make`、`ldid`、`xz`、`dpkg-deb`。
+
+> 为让工程在公开 CI 上一次编译通过，源码里已包含这些修复：
+> Preferences 私有头自带最小声明 + `-undefined dynamic_lookup`、通知名用 `const char *`、
+> `_hostWindow` ivar 显式声明、渐变改用 `CGColorRef` 桥接、`system()` 用 `dlsym` 绕过 iOS SDK
+> availability 限制、`.gitattributes` 强制 LF、`postinst` 权限 755。
 
 ---
 
 ## 四、安装到手机
 
+最省事：把 `MaSplit-1.0.0-iphoneos-arm64.deb` 传进手机，用 **Sileo / Zebra 的「本地文件安装」**，或 Filza 点开安装。
+
+命令行（rootless）：
+
 ```bash
-scp packages/com.malaoshi.masplit_1.0.0_iphoneos-arm64.deb root@<手机IP>:/var/mobile/
-ssh root@<手机IP> "dpkg -i /var/mobile/com.malaoshi.masplit_1.0.0_iphoneos-arm64.deb && killall -9 SpringBoard"
+scp MaSplit-1.0.0-iphoneos-arm64.deb root@<手机IP>:/var/mobile/
+ssh root@<手机IP> "/var/jb/usr/bin/dpkg -i /var/mobile/MaSplit-1.0.0-iphoneos-arm64.deb && killall -9 SpringBoard"
 ```
 
-rootless 越狱（palera1n / Dopamine）默认 SSH 端口 22，root 密码通常是 `alpine`（装完请改）。
-也可以在 Sileo 里用「本地文件」安装这个 deb。
-
+rootless 越狱（palera1n / Dopamine）用 `/var/jb/usr/bin/dpkg`；包内路径已经是 `/var/jb/...`，不用手动改前缀。
 装好后：**设置 → 马老师分屏**。
 
 ---
@@ -161,7 +193,7 @@ python -m http.server 8080
 
 - 卡片里的画面是快照，不是实时视频流。iOS 不允许后台 App 把画面渲染进别的进程窗口，所以「实时」这件事只能靠真双开（实验项）。
 - 快照优先取系统 AppSwitcher 缓存，取不到会生成一张带星空纹理的品牌封面 —— 这是有意的，保证任何 App 都有好看的卡片。
-- 代码尚未在真机编译验证（见第三节说明）。
+- 已在 macOS 15 + iPhoneOS 18.5 SDK 下完整编译、链接、签名并打包通过，但**尚未在真机上安装验证**（本机无越狱设备）。
 
 **排错**
 
