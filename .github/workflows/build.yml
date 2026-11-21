@@ -48,9 +48,17 @@ jobs:
           export PATH="$THEOS/bin:$PATH"
           chmod +x layout/DEBIAN/postinst || true
           make clean || true
-          make package FINALPACKAGE=1
+          make -k package FINALPACKAGE=1 2>&1 | tee /tmp/masplit_build.log
           echo "=== packages ==="
-          ls -la packages/
+          ls -la packages/ || true
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /tmp/masplit_build.log
+          if-no-files-found: ignore
 
       - name: Upload deb
         uses: actions/upload-artifact@v4

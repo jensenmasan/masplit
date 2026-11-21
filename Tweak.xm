@@ -83,6 +83,10 @@ static void MSInstallLauncher(UIView *host) {
 
 #pragma mark - SpringBoard 钩子
 
+// Logos 只为 %hook 目标生成 @class 前向声明，补出继承链让 self.view 可解析
+@interface SBHomeScreenViewController : UIViewController
+@end
+
 %hook SBHomeScreenViewController
 
 - (void)viewDidAppear:(BOOL)animated {
