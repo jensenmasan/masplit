@@ -44,11 +44,12 @@ jobs:
 
       - name: Build package
         run: |
+          set -o pipefail
           export THEOS="$HOME/theos"
           export PATH="$THEOS/bin:$PATH"
           chmod +x layout/DEBIAN/postinst || true
           make clean || true
-          make -k package FINALPACKAGE=1 2>&1 | tee /tmp/masplit_build.log
+          make -k -j8 package FINALPACKAGE=1 2>&1 | tee /tmp/masplit_build.log
           echo "=== packages ==="
           ls -la packages/ || true
 

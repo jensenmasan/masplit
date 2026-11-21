@@ -9,7 +9,7 @@ BUNDLE_NAME = MaSplitPrefs
 MaSplitPrefs_FILES = MSPrefsRootListController.m
 MaSplitPrefs_INSTALL_PATH = /Library/PreferenceBundles
 MaSplitPrefs_FRAMEWORKS = UIKit
-MaSplitPrefs_CFLAGS = -fobjc-arc -Iinclude
+MaSplitPrefs_CFLAGS = -fobjc-arc -Wno-error -Iinclude
 MaSplitPrefs_LDFLAGS = -undefined dynamic_lookup
 MaSplitPrefs_RESOURCE_DIRS = Resources
 

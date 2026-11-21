@@ -4,7 +4,7 @@
 NSString *const MSPrefDomain = @"com.malaoshi.masplit";
 
 static NSString *const kPrefPath  = @"/var/mobile/Library/Preferences/com.malaoshi.masplit.plist";
-static NSString *const kNotifyName = "com.malaoshi.masplit/prefsChanged";
+static const char *const kNotifyName = "com.malaoshi.masplit/prefsChanged";
 
 @implementation MSPreferences {
 	NSDictionary *_cache;

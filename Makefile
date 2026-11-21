@@ -16,7 +16,7 @@ MaSplit_FILES = Tweak.xm \
 	MSRingSelector.m \
 	MSMultiTasking.m
 
-MaSplit_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-unused-function -Wno-unused-variable
+MaSplit_CFLAGS = -fobjc-arc -Wno-error -Wno-deprecated-declarations -Wno-unused-function -Wno-unused-variable
 MaSplit_FRAMEWORKS = UIKit QuartzCore CoreGraphics
 MaSplit_LIBRARIES = substrate
 
